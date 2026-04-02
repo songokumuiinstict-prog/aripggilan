@@ -1,0 +1,179 @@
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Name = "BoBoiBoyCloud"
+ScreenGui.ResetOnSpawn = false
+
+-- Tombol Open (Muncul saat Menu di-Close)
+local OpenBtn = Instance.new("TextButton", ScreenGui)
+OpenBtn.Size = UDim2.new(0, 70, 0, 30)
+OpenBtn.Position = UDim2.new(0, 10, 0.4, 0)
+OpenBtn.Text = "OPEN ☁️"
+OpenBtn.BackgroundColor3 = Color3.fromRGB(200, 230, 255)
+OpenBtn.TextColor3 = Color3.fromRGB(50, 50, 100)
+OpenBtn.Visible = false
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 170, 0, 380)
+MainFrame.Position = UDim2.new(0, 10, 0.25, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(240, 248, 255) -- Warna Putih Awan
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true 
+
+-- Efek Shadow/Awan Sederhana
+local Corner = Instance.new("UICorner", MainFrame)
+Corner.CornerRadius = UDim.new(0, 15)
+
+local Scroll = Instance.new("ScrollingFrame", MainFrame)
+Scroll.Size = UDim2.new(1, -10, 1, -40)
+Scroll.Position = UDim2.new(0, 5, 0, 35)
+Scroll.CanvasSize = UDim2.new(0, 0, 2.5, 0)
+Scroll.BackgroundTransparency = 1
+Scroll.ScrollBarThickness = 4
+local UIList = Instance.new("UIListLayout", Scroll)
+UIList.Padding = UDim.new(0, 8)
+
+local Player = game.Players.LocalPlayer
+local Mouse = Player:GetMouse()
+
+local function GetChar() return Player.Character or Player.CharacterAdded:Wait() end
+local function GetHum() return GetChar():WaitForChild("Humanoid") end
+
+local states = { es = false, blaze = false, solar = false, hali = false, topan = false, duri = false }
+
+local function CreateBtn(name, color, func)
+    local btn = Instance.new("TextButton", Scroll)
+    btn.Size = UDim2.new(1, -5, 0, 40)
+    btn.Text = name
+    btn.BackgroundColor3 = color
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.SourceSansBold
+    local bCorner = Instance.new("UICorner", btn)
+    bCorner.CornerRadius = UDim.new(0, 10)
+    btn.MouseButton1Click:Connect(function() func(btn) end)
+end
+
+-- 1. ES (Pijakan Biru Es - FIX OFF)
+CreateBtn("ES: OFF", Color3.fromRGB(0, 162, 255), function(btn)
+    states.es = not states.es
+    btn.Text = states.es and "ES: ON" or "ES: OFF"
+    if states.es then
+        task.spawn(function()
+            while states.es do
+                local char = GetChar()
+                if not states.es then break end
+                local p = Instance.new("Part", workspace)
+                p.Size = Vector3.new(8, 0.8, 8)
+                p.CFrame = char.HumanoidRootPart.CFrame * CFrame.new(0, -3.4, 0)
+                p.Anchored = true; p.Material = "Glacier"; p.Color = Color3.fromRGB(0, 225, 255)
+                p.Transparency = 0.3
+                game:GetService("Debris"):AddItem(p, 0.4)
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+-- 2. BLAZE (Speed + Aura Api)
+CreateBtn("BLAZE: OFF", Color3.fromRGB(255, 69, 0), function(btn)
+    states.blaze = not states.blaze
+    btn.Text = states.blaze and "BLAZE: ON" or "BLAZE: OFF"
+    local hum = GetHum()
+    local root = GetChar().HumanoidRootPart
+    hum.WalkSpeed = states.blaze and 266 or 16
+    if states.blaze then
+        local f = Instance.new("Fire", root)
+        f.Name = "BlazeAura"; f.Heat = 20; f.Size = 10
+    else
+        if root:FindFirstChild("BlazeAura") then root.BlazeAura:Destroy() end
+    end
+end)
+
+-- 3. GEMPA (Shield 6 Sisi)
+CreateBtn("GEMPA", Color3.fromRGB(139, 69, 19), function()
+    local pos = GetChar().HumanoidRootPart.CFrame
+    for i = 1, 6 do
+        local w = Instance.new("Part", workspace)
+        w.Size = Vector3.new(15, 15, 1); w.Anchored = true; w.Material = "Slate"
+        if i == 1 then w.CFrame = pos * CFrame.new(0,0,-7.5)
+        elseif i == 2 then w.CFrame = pos * CFrame.new(0,0,7.5)
+        elseif i == 3 then w.CFrame = pos * CFrame.new(7.5,0,0) * CFrame.Angles(0,1.57,0)
+        elseif i == 4 then w.CFrame = pos * CFrame.new(-7.5,0,0) * CFrame.Angles(0,1.57,0)
+        elseif i == 5 then w.CFrame = pos * CFrame.new(0,7.5,0) * CFrame.Angles(1.57,0,0)
+        elseif i == 6 then w.CFrame = pos * CFrame.new(0,-7.5,0) * CFrame.Angles(1.57,0,0) end
+        game:GetService("Debris"):AddItem(w, 5)
+    end
+end)
+
+-- 4. TOPAN (Jump + Aura Angin)
+CreateBtn("TOPAN: OFF", Color3.fromRGB(160, 210, 255), function(btn)
+    states.topan = not states.topan
+    btn.Text = states.topan and "TOPAN: ON" or "TOPAN: OFF"
+    local hum = GetHum()
+    local root = GetChar().HumanoidRootPart
+    hum.JumpPower = states.topan and 150 or 50
+    if states.topan then
+        local s = Instance.new("Smoke", root)
+        s.Name = "TopanAura"; s.Opacity = 0.3; s.Rise = 5
+    else
+        if root:FindFirstChild("TopanAura") then root.TopanAura:Destroy() end
+    end
+end)
+
+-- 5. SOLAR (Laser Kuning)
+CreateBtn("SOLAR: OFF", Color3.fromRGB(255, 215, 0), function(btn)
+    states.solar = not states.solar
+    btn.Text = states.solar and "SOLAR: ON" or "SOLAR: OFF"
+end)
+
+-- 6. DURI (Tarik On/Off)
+CreateBtn("DURI: OFF", Color3.fromRGB(34, 139, 34), function(btn)
+    states.duri = not states.duri
+    btn.Text = states.duri and "DURI: ON" or "DURI: OFF"
+end)
+
+-- 7. HALILINTAR (Teleport)
+CreateBtn("HALI: OFF", Color3.fromRGB(128, 0, 128), function(btn)
+    states.hali = not states.hali
+    btn.Text = states.hali and "HALI: ON" or "HALI: OFF"
+end)
+
+-- Logic Klik (Solar, Duri, Hali)
+Mouse.Button1Down:Connect(function()
+    local char = GetChar()
+    if states.solar and Mouse.Target and not Mouse.Target.Parent:FindFirstChild("Humanoid") then
+        local b = Instance.new("Part", workspace)
+        b.Anchored = true; b.CanCollide = false; b.Color = Color3.new(1,1,0); b.Material = "Neon"
+        local d = (char.Head.Position - Mouse.Hit.p).Magnitude
+        b.Size = Vector3.new(0.8, 0.8, d)
+        b.CFrame = CFrame.new(char.Head.Position, Mouse.Hit.p) * CFrame.new(0,0,-d/2)
+        Mouse.Target:Destroy()
+        game:GetService("Debris"):AddItem(b, 0.2)
+    end
+    if states.hali and Mouse.Hit then char:SetPrimaryPartCFrame(CFrame.new(Mouse.Hit.p + Vector3.new(0,3,0))) end
+    if states.duri and Mouse.Target and Mouse.Target.Parent:FindFirstChild("Humanoid") then
+        local en = Mouse.Target.Parent.HumanoidRootPart
+        task.spawn(function()
+            local st = tick()
+            while tick()-st < 10 and states.duri do
+                char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame:Lerp(en.CFrame * CFrame.new(0,0,3), 0.3)
+                task.wait()
+            end
+        end)
+    end
+end)
+
+-- Tombol Close & Open
+local CloseX = Instance.new("TextButton", MainFrame)
+CloseX.Size = UDim2.new(0, 25, 0, 25); CloseX.Position = UDim2.new(1, -30, 0, 5)
+CloseX.Text = "X"; CloseX.BackgroundColor3 = Color3.fromRGB(255, 100, 100); CloseX.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", CloseX).CornerRadius = UDim.new(1, 0)
+
+CloseX.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    OpenBtn.Visible = true
+end)
+
+OpenBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    OpenBtn.Visible = false
+end)
