@@ -45,7 +45,17 @@ local ModelList = {
     ["P34"] = "406778441",
     ["P35"] = "322186927",
     ["P36"] = "1463093113",
-    ["P37"] = "127612874790928"
+    ["P37"] = "127612874790928",
+    ["P38"] = "12102679016",
+    ["P39"] = "12264263315", 
+    ["P40"] = "12191764344",
+    ["P41"] = "9389000468",
+    ["P42"] = "132696056169041",
+    ["P43"] = "105664000759083",
+    ["P44"] = "11648235847",
+    ["P45"] = "9456478866",
+    ["P46"] = "9766018346",
+    ["P47"] = "14818170533",
 }
 
 local spawnedStatues = {}
@@ -95,7 +105,7 @@ local UserInputService = game:GetService("UserInputService")
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Parent = ScreenGui
 ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
-ToggleBtn.Position = UDim2.new(0.5, 0, 0.5, 0)0, 255)
+ToggleBtn.Position = UDim2.new(0.5, 0, 0.5, 0)
 ToggleBtn.Text = "PX"
 ToggleBtn.TextScaled = true
 ToggleBtn.Font = Enum.Font.SourceSansBold
@@ -174,7 +184,7 @@ local function refreshESP()
 end
 
 -- [ UPDATE LOOP DAFTAR PATUNG ] --
-for i = 0, 37 do
+for i = 0, 47 do
     local Name = "P"..i
     local ID = ModelList[Name]
     local b = Instance.new("TextButton", ScrollList)
