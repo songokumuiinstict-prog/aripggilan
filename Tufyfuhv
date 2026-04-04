@@ -1,0 +1,170 @@
+--// Dodge Script Remastered by Zambiegc
+--[[ SETTINGS ]]--
+local TOGGLE_KEY = Enum.KeyCode.X
+local TELEPORT_DISTANCE = 5
+local TWEEN_SPEED = 0.05
+local CHECK_INTERVAL = 0.1
+local ANGLE_THRESHOLD = math.rad(120)
+
+--[[ SERVICES ]]--
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+--[[ STATE ]]--
+local Enabled = false
+local LoopThread = nil
+local DetectionRadius = 8 -- Default value
+
+--[[ FUNCTION: Get Random Offset ]]--
+-- Memilih secara acak apakah ke belakang, kiri, atau kanan
+local function getRandomOffset()
+    local choices = {
+        Vector3.new(0, 0, TELEPORT_DISTANCE),  -- Belakang
+        Vector3.new(TELEPORT_DISTANCE, 0, 0), -- Kanan
+        Vector3.new(-TELEPORT_DISTANCE, 0, 0) -- Kiri
+    }
+    return choices[math.random(1, #choices)]
+end
+
+--[[ FUNCTION: Tween Teleport ]]--
+local function teleportRandomly(targetChar)
+	local myChar = LocalPlayer.Character
+	if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+	if not targetChar or not targetChar:FindFirstChild("HumanoidRootPart") then return end
+
+	local root = myChar:FindFirstChild("HumanoidRootPart")
+	local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+
+	-- Menghitung posisi baru berdasarkan offset acak
+	local offset = getRandomOffset()
+	local targetCFrame = targetRoot.CFrame * CFrame.new(offset.X, offset.Y, offset.Z)
+    
+	local tween = TweenService:Create(root, TweenInfo.new(TWEEN_SPEED, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+	tween:Play()
+end
+
+--[[ FUNCTION: Check If Target is Facing Away ]]--
+local function isFacingAway(targetHRP, myHRP)
+	local toMe = (myHRP.Position - targetHRP.Position).Unit
+	local targetLook = targetHRP.CFrame.LookVector
+	local dot = targetLook:Dot(toMe)
+	local angle = math.acos(dot)
+	return angle < ANGLE_THRESHOLD
+end
+
+--[[ FUNCTION: Main Loop ]]--
+local function runTeleportLoop()
+	if LoopThread then return end
+	LoopThread = coroutine.create(function()
+		while Enabled do
+			local myChar = LocalPlayer.Character
+			local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+			if not myHRP then
+				task.wait(1)
+				continue
+			end
+
+			for _, plr in ipairs(Players:GetPlayers()) do
+				if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+					local otherHRP = plr.Character:FindFirstChild("HumanoidRootPart")
+					local dist = (myHRP.Position - otherHRP.Position).Magnitude
+
+					if dist <= DetectionRadius and isFacingAway(otherHRP, myHRP) then
+						teleportRandomly(plr.Character)
+						break
+					end
+				end
+			end
+			task.wait(CHECK_INTERVAL)
+		end
+		LoopThread = nil
+	end)
+	coroutine.resume(LoopThread)
+end
+
+--[[ GUI CONSTRUCTION ]]--
+local gui = Instance.new("ScreenGui")
+gui.Name = "TeleportToggleGUI"
+gui.ResetOnSpawn = false
+gui.Parent = PlayerGui
+
+local frame = Instance.new("Frame")
+frame.Name = "MainFrame"
+frame.Size = UDim2.new(0, 180, 0, 90) -- Diperbesar sedikit untuk box input
+frame.Position = UDim2.new(0, 10, 1, -100)
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.BackgroundTransparency = 0.2
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(1, 0, 0.25, 0)
+label.BackgroundTransparency = 1
+label.TextColor3 = Color3.fromRGB(200, 200, 200)
+label.TextScaled = true
+label.Text = "Dodge Script v2"
+label.Parent = frame
+
+-- TextBox untuk input Radius
+local radiusInput = Instance.new("TextBox")
+radiusInput.Size = UDim2.new(0.9, 0, 0.3, 0)
+radiusInput.Position = UDim2.new(0.05, 0, 0.3, 0)
+radiusInput.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+radiusInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+radiusInput.PlaceholderText = "Radius (Def: 8)"
+radiusInput.Text = tostring(DetectionRadius)
+radiusInput.TextScaled = true
+radiusInput.Parent = frame
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(1, 0, 0.4, 0)
+toggleBtn.Position = UDim2.new(0, 0, 0.6, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.TextScaled = true
+toggleBtn.Text = "Smart TP: OFF"
+toggleBtn.Parent = frame
+
+--[[ LOGIC FUNCTIONS ]]--
+local function updateButtonText()
+	toggleBtn.Text = "Smart TP: " .. (Enabled and "ON" or "OFF")
+	toggleBtn.BackgroundColor3 = Enabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(30, 30, 30)
+end
+
+local function toggleTeleport()
+	Enabled = not Enabled
+	if Enabled then
+		runTeleportLoop()
+	end
+	updateButtonText()
+end
+
+-- Update radius saat teks berubah
+radiusInput.FocusLost:Connect(function()
+    local val = tonumber(radiusInput.Text)
+    if val then
+        DetectionRadius = val
+        print("Detection Radius set to: " .. val)
+    else
+        radiusInput.Text = tostring(DetectionRadius)
+    end
+end)
+
+toggleBtn.MouseButton1Click:Connect(toggleTeleport)
+
+UserInputService.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
+	if input.KeyCode == TOGGLE_KEY then
+		toggleTeleport()
+	end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function()
+	task.wait(1)
+	if Enabled then runTeleportLoop() end
+end)
