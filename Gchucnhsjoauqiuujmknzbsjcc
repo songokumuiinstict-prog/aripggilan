@@ -1,0 +1,1249 @@
+--[[
+UNIVERSAL WORK PUNKX FINAL V7.1 (HYBRID REVISED)
+- Integrated User Move Tool Logic
+- Improved Object Offsetting
+- Anti-Freeze GUI Support
+]]
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local LP = Players.LocalPlayer
+local Mouse = LP:GetMouse()
+local Camera = Workspace.CurrentCamera
+
+-- Global Data
+local States = {
+Speed = 16,
+Jump = 50,
+InfJump = false,
+Noclip = false,
+AirStep = false,
+AutoReward = false,
+SizeValue = 1,
+PartWide = 4,
+PartTall = 1,
+PartLong = 4,
+PartDeg = 15,
+PartColor = "Bright",
+VoidPlatform = false,
+VoidSizeX = 50,
+VoidSizeZ = 50,
+VoidHeight = 8,
+VoidPart = nil,
+ESP = false,
+ESP_Name = true,
+ESP_Box = true,
+ESP_Tracer = true,
+ESP_Distance = true,
+ESP_HealthText = true,
+ESP_Highlight = true,
+}
+
+-- GUI Root
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PunkX_V7_Hybrid_Revised"
+ScreenGui.Parent = LP:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+
+-- Open Button
+local OpenBtn = Instance.new("TextButton")
+OpenBtn.Size = UDim2.new(0, 80, 0, 30)
+OpenBtn.Position = UDim2.new(0, 10, 0, 10)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(100, 180, 255)
+OpenBtn.Text = "Buka"
+OpenBtn.Visible = false
+OpenBtn.Parent = ScreenGui
+
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 420, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -210, 0.5, -160)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.Active = true
+MainFrame.Parent = ScreenGui
+
+-- Manual Drag System
+local dragging, dragInput, dragStart, startPos
+MainFrame.InputBegan:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+dragging = true
+dragStart = input.Position
+startPos = MainFrame.Position
+end
+end)
+UIS.InputChanged:Connect(function(input)
+if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+local delta = input.Position - dragStart
+MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+end)
+UIS.InputEnded:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+dragging = false
+end
+end)
+
+-- Header
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 35); Header.BackgroundColor3 = Color3.fromRGB(100, 180, 255); Header.Parent = MainFrame
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -70, 1, 0); Title.Text = " PUNKX V7.1 - MOVE FIX"; Title.TextColor3 = Color3.new(1,1,1); Title.BackgroundTransparency = 1; Title.Parent = Header
+
+local function createHeaderBtn(txt, pos, callback)
+local b = Instance.new("TextButton")
+b.Text = txt; b.Size = UDim2.new(0, 35, 0, 35); b.Position = pos; b.Parent = Header
+b.MouseButton1Click:Connect(callback)
+end
+
+createHeaderBtn("-", UDim2.new(1, -70, 0, 0), function()
+_G.mini = not _G.mini
+MainFrame:TweenSize(_G.mini and UDim2.new(0, 420, 0, 35) or UDim2.new(0, 420, 0, 320), "Out", "Quad", 0.2)
+end)
+
+createHeaderBtn("X", UDim2.new(1, -35, 0, 0), function() MainFrame.Visible = false; OpenBtn.Visible = true end)
+OpenBtn.MouseButton1Click:Connect(function() MainFrame.Visible = true; OpenBtn.Visible = false end)
+
+-- Menus
+local PMenu = Instance.new("ScrollingFrame")
+PMenu.Size = UDim2.new(1, -10, 1, -80)
+PMenu.Position = UDim2.new(0, 5, 0, 75)
+PMenu.BackgroundTransparency = 1
+PMenu.Parent = MainFrame
+PMenu.AutomaticCanvasSize = Enum.AutomaticSize.Y
+PMenu.CanvasSize = UDim2.new(0, 0, 0, 0)
+PMenu.ScrollBarThickness = 4
+local radiusBox = Instance.new("TextBox", PMenu)
+radiusBox.Size = UDim2.new(0.95,0,0,35)
+radiusBox.PlaceholderText = "Radius (default 10)"
+radiusBox.BackgroundColor3 = Color3.fromRGB(30,30,30)
+radiusBox.TextColor3 = Color3.new(1,1,1)
+
+States.AntiRange = 10
+
+radiusBox.FocusLost:Connect(function()
+local val = tonumber(radiusBox.Text)
+if val and val > 0 then
+States.AntiRange = val
+end
+end)
+States.AntiDamage = false
+
+local toggle = Instance.new("TextButton", PMenu)
+toggle.Size = UDim2.new(0.95,0,0,35)
+
+RunService.RenderStepped:Connect(function()
+toggle.Text = "Anti Damage: " .. (States.AntiDamage and "ON" or "OFF")
+toggle.BackgroundColor3 = States.AntiDamage and Color3.fromRGB(0,170,100) or Color3.fromRGB(45,45,45)
+end)
+
+toggle.MouseButton1Click:Connect(function()
+States.AntiDamage = not States.AntiDamage
+end)
+
+-- ================= VOID PLATFORM =================
+
+-- Input Lebar (X)
+local VoidSizeXInput = Instance.new("TextBox", PMenu)
+VoidSizeXInput.Size = UDim2.new(0.95,0,0,35)
+VoidSizeXInput.PlaceholderText = "Void Lebar (X)"
+VoidSizeXInput.BackgroundColor3 = Color3.fromRGB(30,30,30)
+VoidSizeXInput.TextColor3 = Color3.new(1,1,1)
+
+VoidSizeXInput.FocusLost:Connect(function()
+    local val = tonumber(VoidSizeXInput.Text)
+    if val and val > 0 then
+        States.VoidSizeX = val
+    end
+end)
+
+-- Input Panjang (Z)
+local VoidSizeZInput = Instance.new("TextBox", PMenu)
+VoidSizeZInput.Size = UDim2.new(0.95,0,0,35)
+VoidSizeZInput.PlaceholderText = "Void Panjang (Z)"
+VoidSizeZInput.BackgroundColor3 = Color3.fromRGB(30,30,30)
+VoidSizeZInput.TextColor3 = Color3.new(1,1,1)
+
+VoidSizeZInput.FocusLost:Connect(function()
+    local val = tonumber(VoidSizeZInput.Text)
+    if val and val > 0 then
+        States.VoidSizeZ = val
+    end
+end)
+
+-- Input Height
+local VoidHeightInput = Instance.new("TextBox", PMenu)
+VoidHeightInput.Size = UDim2.new(0.95,0,0,35)
+VoidHeightInput.PlaceholderText = "Void Height (jarak dari void)"
+VoidHeightInput.BackgroundColor3 = Color3.fromRGB(30,30,30)
+VoidHeightInput.TextColor3 = Color3.new(1,1,1)
+
+VoidHeightInput.FocusLost:Connect(function()
+local val = tonumber(VoidHeightInput.Text)
+if val then
+States.VoidHeight = val
+end
+end)
+
+-- Toggle Button
+local VoidToggle = Instance.new("TextButton", PMenu)
+VoidToggle.Size = UDim2.new(0.95,0,0,35)
+
+RunService.RenderStepped:Connect(function()
+VoidToggle.Text = "Void Platform: " .. (States.VoidPlatform and "ON" or "OFF")
+VoidToggle.BackgroundColor3 = States.VoidPlatform and Color3.fromRGB(0,170,100) or Color3.fromRGB(45,45,45)
+end)
+
+VoidToggle.MouseButton1Click:Connect(function()
+States.VoidPlatform = not States.VoidPlatform
+end)
+
+local BMenu = Instance.new("ScrollingFrame")
+BMenu.Size = UDim2.new(1, -10, 1, -80)
+BMenu.Position = UDim2.new(0, 5, 0, 75)
+BMenu.BackgroundTransparency = 1
+BMenu.Visible = false
+BMenu.Parent = MainFrame
+BMenu.AutomaticCanvasSize = Enum.AutomaticSize.Y
+BMenu.CanvasSize = UDim2.new(0, 0, 0, 0)
+BMenu.ScrollBarThickness = 4
+
+Instance.new("UIListLayout", PMenu).Padding = UDim.new(0, 5)
+Instance.new("UIListLayout", BMenu).Padding = UDim.new(0, 5)
+
+local TabP = Instance.new("TextButton")
+TabP.Text = "PLAYER"; TabP.Size = UDim2.new(0.5, 0, 0, 35); TabP.Position = UDim2.new(0, 0, 0, 35); TabP.Parent = MainFrame
+
+local TabB = Instance.new("TextButton")
+TabB.Text = "BTOOLS"; TabB.Size = UDim2.new(0.5, 0, 0, 35); TabB.Position = UDim2.new(0.5, 0, 0, 35); TabB.Parent = MainFrame
+
+-- Logika Pindah Tab (Sudah Fix)
+TabP.MouseButton1Click:Connect(function()
+PMenu.Visible = true
+BMenu.Visible = false
+end)
+
+TabB.MouseButton1Click:Connect(function()
+PMenu.Visible = false
+BMenu.Visible = true
+end)
+
+
+---
+
+-- PLAYER LOGIC
+
+local function makeToggle(txt, parent, key)
+local b = Instance.new("TextButton")
+b.Size = UDim2.new(0.95, 0, 0, 35); b.BackgroundColor3 = Color3.fromRGB(45, 45, 45); b.TextColor3 = Color3.new(1,1,1); b.Parent = parent
+RunService.RenderStepped:Connect(function()
+b.Text = txt .. ": " .. (States[key] and "ON" or "OFF")
+b.BackgroundColor3 = States[key] and Color3.fromRGB(0, 160, 100) or Color3.fromRGB(45, 45, 45)
+end)
+b.MouseButton1Click:Connect(function() States[key] = not States[key] end)
+end
+
+local function makeInput(placeholder, parent, key)
+local i = Instance.new("TextBox")
+i.Size = UDim2.new(0.95, 0, 0, 35); i.PlaceholderText = placeholder; i.BackgroundColor3 = Color3.fromRGB(30, 30, 30); i.TextColor3 = Color3.new(1,1,1); i.Parent = parent
+i.FocusLost:Connect(function() States[key] = tonumber(i.Text) or (key == "Speed" and 16 or 50) end)
+end
+
+makeInput("Speed Value", PMenu, "Speed")
+makeInput("Jump Value", PMenu, "Jump")
+makeToggle("Inf Jump", PMenu, "InfJump")
+makeToggle("Noclip", PMenu, "Noclip")
+makeToggle("Air Step", PMenu, "AirStep")
+makeToggle("ESP Master", PMenu, "ESP")
+makeToggle("ESP Name", PMenu, "ESP_Name")
+makeToggle("ESP Box", PMenu, "ESP_Box")
+makeToggle("ESP Tracer", PMenu, "ESP_Tracer")
+makeToggle("ESP Distance", PMenu, "ESP_Distance")
+makeToggle("ESP Health Text", PMenu, "ESP_HealthText")
+makeToggle("ESP Highlight", PMenu, "ESP_Highlight")
+
+RunService.Heartbeat:Connect(function()
+if LP.Character and LP.Character:FindFirstChild("Humanoid") then
+LP.Character.Humanoid.WalkSpeed = States.Speed
+LP.Character.Humanoid.JumpPower = States.Jump
+LP.Character.Humanoid.UseJumpPower = true
+end
+end)
+
+UIS.JumpRequest:Connect(function() if States.InfJump and LP.Character then LP.Character.Humanoid:ChangeState(3) end end)
+RunService.Stepped:Connect(function()
+if States.Noclip and LP.Character then
+for _, p in pairs(LP.Character:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end
+end
+end)
+
+local air = Instance.new("Part", Workspace); air.Size = Vector3.new(8, 0.5, 8); air.Anchored = true; air.Transparency = 1
+RunService.RenderStepped:Connect(function()
+if States.AirStep and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+air.CFrame = LP.Character.HumanoidRootPart.CFrame * CFrame.new(0, -3.25, 0); air.CanCollide = true
+else air.CanCollide = false end
+end)
+
+-- ================= VOID PLATFORM LOGIC =================
+RunService.Heartbeat:Connect(function()
+if States.VoidPlatform then
+local voidY = workspace.FallenPartsDestroyHeight + States.VoidHeight
+
+if not States.VoidPart or not States.VoidPart.Parent then  
+        local p = Instance.new("Part")  
+        p.Name = "VoidPlatform"  
+        p.Anchored = true  
+        p.Size = Vector3.new(States.VoidSizeX, 1, States.VoidSizeZ)
+        p.Material = Enum.Material.SmoothPlastic  
+        p.Transparency = 0.4  
+        p.Color = Color3.fromRGB(0,255,255)  
+        p.Parent = workspace  
+
+        States.VoidPart = p  
+    end  
+
+    -- FIXED POSISI (tidak ngikut player)  
+    States.VoidPart.Position = Vector3.new(0, voidY, 0)  
+
+    -- update size realtime  
+    States.VoidPart.Size = Vector3.new(States.VoidSizeX, 1, States.VoidSizeZ)
+
+else  
+    if States.VoidPart then  
+        States.VoidPart:Destroy()  
+        States.VoidPart = nil  
+    end  
+end
+
+end)
+
+-- ================= DRONE SYSTEM FINAL DEWA =================
+
+States.ActiveDrones = {}
+States.MaxDrones = 50
+
+-- INPUT NAMA PLAYER
+local NameInput = Instance.new("TextBox", PMenu)
+NameInput.Size = UDim2.new(0.95,0,0,35)
+NameInput.PlaceholderText = "Nama bebas (display / sebagian)"
+NameInput.BackgroundColor3 = Color3.fromRGB(30,30,30)
+NameInput.TextColor3 = Color3.new(1,1,1)
+
+-- INPUT NOMOR DRONE
+local DroneIdx = Instance.new("TextBox", PMenu)
+DroneIdx.Size = UDim2.new(0.95,0,0,35)
+DroneIdx.PlaceholderText = "Nomor Drone"
+DroneIdx.BackgroundColor3 = Color3.fromRGB(30,30,30)
+DroneIdx.TextColor3 = Color3.new(1,1,1)
+
+-- ================= SMART FIND PLAYER =================
+local function findPlayerSmart(input)
+if not input or input == "" then return nil end
+input = string.lower(input)
+
+for _,plr in pairs(Players:GetPlayers()) do  
+    local name = string.lower(plr.Name)  
+    local display = string.lower(plr.DisplayName)  
+
+    if string.find(name, input) or string.find(display, input) then  
+        return plr  
+    end  
+end
+
+end
+
+-- ================= CREATE DRONE =================
+local function createDrone(targetPlayer, randomMode)
+if not targetPlayer then return end
+if #States.ActiveDrones >= States.MaxDrones then return end
+
+local drone = Instance.new("Model")  
+drone.Name = "Drone_"..(#States.ActiveDrones+1)  
+drone.Parent = workspace  
+
+-- BODY  
+local body = Instance.new("Part")  
+body.Name = "MainBody"  
+body.Size = Vector3.new(3,0.6,3)  
+body.Anchored = true  
+body.Material = Enum.Material.Metal  
+body.BrickColor = BrickColor.new("Dark stone grey")  
+body.Parent = drone  
+
+-- LABEL NOMOR  
+local bb = Instance.new("BillboardGui", body)  
+bb.Size = UDim2.new(0,100,0,50)  
+bb.AlwaysOnTop = true  
+
+local txt = Instance.new("TextLabel", bb)  
+txt.Size = UDim2.new(1,0,1,0)  
+txt.BackgroundTransparency = 1  
+txt.Text = "Drone #"..(#States.ActiveDrones+1)  
+txt.TextColor3 = Color3.new(1,1,1)  
+txt.TextStrokeTransparency = 0  
+
+-- BALING-BALING REAL  
+local props = {}  
+local offsets = {  
+    Vector3.new(2,0.5,2),  
+    Vector3.new(-2,0.5,2),  
+    Vector3.new(2,0.5,-2),  
+    Vector3.new(-2,0.5,-2)  
+}  
+
+for _,off in pairs(offsets) do  
+    local prop = Instance.new("Part")  
+    prop.Size = Vector3.new(1.5,0.1,0.3)  
+    prop.Anchored = true  
+    prop.CanCollide = false  
+    prop.Material = Enum.Material.Neon  
+    prop.Transparency = 0.2  
+    prop.BrickColor = BrickColor.new("Black")  
+    prop.Parent = drone  
+
+    table.insert(props, {part = prop, offset = off})  
+end  
+
+local data = {  
+    Model = drone,  
+    Body = body,  
+    Props = props,  
+    Target = targetPlayer,  
+    Random = randomMode,  
+    LastSwitch = tick()  
+}  
+
+table.insert(States.ActiveDrones, data)
+
+end
+
+-- ================= LOOP GLOBAL =================
+RunService.RenderStepped:Connect(function()
+local spin = tick() * 60
+
+for _,d in pairs(States.ActiveDrones) do  
+    if d.Model and d.Body then  
+
+        -- RANDOM TARGET  
+        if d.Random and tick() - d.LastSwitch > 60 then  
+            local plrs = Players:GetPlayers()  
+            d.Target = plrs[math.random(1,#plrs)]  
+            d.LastSwitch = tick()  
+        end  
+
+        -- FOLLOW  
+        if d.Target and d.Target.Character and d.Target.Character:FindFirstChild("HumanoidRootPart") then  
+            local pos = d.Target.Character.HumanoidRootPart.Position  
+            d.Body.CFrame = CFrame.new(pos + Vector3.new(0,12,0))  
+        end  
+
+        -- PUTAR BALING-BALING  
+        for _,p in pairs(d.Props) do  
+            if p.part then  
+                p.part.CFrame =  
+                    d.Body.CFrame  
+                    * CFrame.new(p.offset)  
+                    * CFrame.Angles(0, spin, 0)  
+            end  
+        end  
+    end  
+end
+
+end)
+
+-- ================= SPAWN RANDOM =================
+local BtnRandom = Instance.new("TextButton", PMenu)
+BtnRandom.Size = UDim2.new(0.95,0,0,35)
+BtnRandom.Text = "Spawn Drone Random"
+BtnRandom.BackgroundColor3 = Color3.fromRGB(0,150,100)
+
+BtnRandom.MouseButton1Click:Connect(function()
+local plrs = Players:GetPlayers()
+if #plrs > 0 then
+createDrone(plrs[math.random(1,#plrs)], true)
+end
+end)
+
+-- ================= SPAWN TARGET =================
+local BtnTarget = Instance.new("TextButton", PMenu)
+BtnTarget.Size = UDim2.new(0.95,0,0,35)
+BtnTarget.Text = "Spawn Drone Target"
+BtnTarget.BackgroundColor3 = Color3.fromRGB(0,120,200)
+
+BtnTarget.MouseButton1Click:Connect(function()
+local t = findPlayerSmart(NameInput.Text)
+if t then
+createDrone(t, false)
+BtnTarget.Text = "Spawn Berhasil!"
+else
+BtnTarget.Text = "Player Tidak Ditemukan!"
+end
+task.wait(1)
+BtnTarget.Text = "Spawn Drone Target"
+end)
+
+-- ================= NAIK DRONE =================
+local BtnUp = Instance.new("TextButton", PMenu)
+BtnUp.Size = UDim2.new(0.95,0,0,35)
+BtnUp.Text = "Naik ke Drone (Anti Jatuh)"
+
+BtnUp.MouseButton1Click:Connect(function()
+local idx = tonumber(DroneIdx.Text)
+local d = States.ActiveDrones[idx]
+
+if d and d.Body then  
+    local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")  
+    if not hrp then return end  
+
+    hrp.CFrame = d.Body.CFrame * CFrame.new(0,2.5,0)  
+
+    local weld = Instance.new("WeldConstraint")  
+    weld.Part0 = hrp  
+    weld.Part1 = d.Body  
+    weld.Parent = hrp  
+end
+
+end)
+
+-- ================= TURUN =================
+local BtnDown = Instance.new("TextButton", PMenu)
+BtnDown.Size = UDim2.new(0.95,0,0,35)
+BtnDown.Text = "Turun dari Drone"
+
+BtnDown.MouseButton1Click:Connect(function()
+local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+if not hrp then return end
+
+for _,v in pairs(hrp:GetChildren()) do  
+    if v:IsA("WeldConstraint") then  
+        v:Destroy()  
+    end  
+end  
+
+hrp.CFrame = hrp.CFrame * CFrame.new(0,-10,0)
+
+end)
+
+-- ================= DELETE ALL =================
+local BtnDeleteAll = Instance.new("TextButton", PMenu)
+BtnDeleteAll.Size = UDim2.new(0.95,0,0,35)
+BtnDeleteAll.Text = "DELETE ALL DRONE"
+BtnDeleteAll.BackgroundColor3 = Color3.fromRGB(150,0,0)
+
+BtnDeleteAll.MouseButton1Click:Connect(function()
+for _,d in pairs(States.ActiveDrones) do
+if d.Model then d.Model:Destroy() end
+end
+States.ActiveDrones = {}
+end)
+
+local function isDangerous(p)
+if not p:IsA("BasePart") then return false end
+local n = p.Name:lower()
+
+return (  
+    string.find(n,"kill") or  
+    string.find(n,"damage") or  
+    string.find(n,"lava") or  
+    string.find(n,"laser") or  
+    (p.Material == Enum.Material.Neon and p.CanTouch)  
+)
+
+end
+
+RunService.Heartbeat:Connect(function()
+if not States.AntiDamage then return end
+
+local char = LP.Character  
+if not char then return end  
+
+local hrp = char:FindFirstChild("HumanoidRootPart")  
+if not hrp then return end  
+
+local parts = workspace:GetPartBoundsInRadius(hrp.Position, States.AntiRange)  
+
+for i = 1, #parts do  
+    local v = parts[i]  
+    if isDangerous(v) then  
+        pcall(function()  
+            v:Destroy()  
+        end)  
+    end  
+end
+
+end)
+
+-- ================= TP TO PLAYER (PLAYER MENU) =================
+
+local TPLabel = Instance.new("TextLabel", PMenu)
+TPLabel.Size = UDim2.new(0.95,0,0,30)
+TPLabel.Text = "== TP TO PLAYER =="
+TPLabel.BackgroundTransparency = 1
+TPLabel.TextColor3 = Color3.new(1,1,1)
+
+-- Scroll Player List
+local TPScroll = Instance.new("ScrollingFrame", PMenu)
+TPScroll.Size = UDim2.new(0.95,0,0,150)
+TPScroll.BackgroundColor3 = Color3.fromRGB(25,25,25)
+TPScroll.CanvasSize = UDim2.new(0,0,0,0)
+TPScroll.ScrollBarThickness = 4
+
+local TPLayout = Instance.new("UIListLayout", TPScroll)
+TPLayout.Padding = UDim.new(0,5)
+
+-- FUNCTION TP
+local function TPToPlayer(plr)
+if not plr.Character then return end
+local targetHRP = plr.Character:FindFirstChild("HumanoidRootPart")
+
+local myChar = LP.Character or LP.CharacterAdded:Wait()  
+local myHRP = myChar:WaitForChild("HumanoidRootPart")  
+
+if targetHRP then  
+    myHRP.CFrame = targetHRP.CFrame + Vector3.new(2,0,2)  
+end
+
+end
+
+-- REFRESH LIST
+local function RefreshTPList()
+for _,v in pairs(TPScroll:GetChildren()) do
+if v:IsA("TextButton") then
+v:Destroy()
+end
+end
+
+for _,plr in pairs(Players:GetPlayers()) do  
+    if plr ~= LP then  
+        local Btn = Instance.new("TextButton")  
+        Btn.Size = UDim2.new(1, -5, 0, 30)  
+        Btn.Text = plr.Name  
+        Btn.BackgroundColor3 = Color3.fromRGB(0,120,255)  
+        Btn.TextColor3 = Color3.new(1,1,1)  
+        Btn.Parent = TPScroll  
+
+        Btn.MouseButton1Click:Connect(function()  
+            TPToPlayer(plr)  
+        end)  
+    end  
+end  
+
+task.wait()  
+TPScroll.CanvasSize = UDim2.new(0,0,0,TPLayout.AbsoluteContentSize.Y + 10)
+
+end
+
+Players.PlayerAdded:Connect(RefreshTPList)
+Players.PlayerRemoving:Connect(RefreshTPList)
+
+RefreshTPList()
+
+
+---
+
+-- BTOOLS (INTEGRATED USER LOGIC)
+
+local function giveTool(name, func)
+local t = Instance.new("Tool")
+t.Name = name
+t.RequiresHandle = false
+t.Activated:Connect(func)
+t.Parent = LP.Backpack
+end
+
+-- ===== INTEGRATED MOVE TOOL V3 =====
+local bMove = Instance.new("TextButton")
+bMove.Text = "[GET] Move Tool (Stable)"; bMove.Size = UDim2.new(0.95, 0, 0, 35); bMove.Parent = BMenu
+bMove.MouseButton1Click:Connect(function()
+giveTool("Move", function()
+local target = Mouse.Target
+if not (target and target:IsA("BasePart")) then return end
+
+local oldAnchored = target.Anchored  
+    target.Anchored = true  
+
+    local offset = target.CFrame:ToObjectSpace(Mouse.Hit)      
+    local holding = true      
+
+    local conn      
+    conn = RunService.RenderStepped:Connect(function()      
+        if not holding or not target.Parent then      
+            conn:Disconnect()      
+            target.Anchored = oldAnchored      
+            return      
+        end      
+        target.CFrame = Mouse.Hit * offset:Inverse()      
+    end)      
+
+    Mouse.Button1Up:Wait()      
+    holding = false  
+end)
+
+end)
+
+-- Rest of BTools
+local function getBTool(name, func)
+local b = Instance.new("TextButton"); b.Text = "[GET] "..name; b.Size = UDim2.new(0.95,0,0,35); b.Parent = BMenu
+b.MouseButton1Click:Connect(function() giveTool(name, function() if Mouse.Target then func(Mouse.Target) end end) end)
+end
+
+getBTool("Destroy Tool", function(o) o:Destroy() end)
+getBTool("Clone Tool", function(o) local c = o:Clone(); c.Parent = o.Parent; c.CFrame = o.CFrame * CFrame.new(0, 5, 0) end)
+
+makeInput("Size Multiplier", BMenu, "SizeValue")
+local sData = {{"Pjg",1,0,0},{"Lbr",0,0,1},{"Tgi",0,1,0},{"Luas",1,1,1}}
+for _,v in pairs(sData) do
+getBTool("Size+ "..v[1], function(o) o.Size += Vector3.new(v[2],v[3],v[4])*States.SizeValue end)
+getBTool("Size- "..v[1], function(o) o.Size -= Vector3.new(v[2],v[3],v[4])*States.SizeValue end)
+end
+
+-- ================= TELEPORT TOOLS (FOR BTOOLS TAB) =================
+
+-- 1. Tombol untuk Direct TP
+local bDirect = Instance.new("TextButton")
+bDirect.Text = "[GET] Direct TP Tool"; bDirect.Size = UDim2.new(0.95, 0, 0, 35); bDirect.Parent = BMenu
+bDirect.MouseButton1Click:Connect(function()
+local toolName = "DirectTeleportTool"
+if LP.Backpack:FindFirstChild(toolName) then return end
+
+local t = Instance.new("Tool")  
+t.Name = toolName  
+t.RequiresHandle = false  
+t.Activated:Connect(function()  
+    local char = LP.Character  
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")  
+    if hrp then   
+        hrp.CFrame = CFrame.new(Mouse.Hit.Position + Vector3.new(0, 4, 0))   
+    end  
+end)  
+t.Parent = LP.Backpack
+
+end)
+
+-- 2. Tombol untuk Portal TP
+local bPortal = Instance.new("TextButton")
+bPortal.Text = "[GET] Portal TP Tool"; bPortal.Size = UDim2.new(0.95, 0, 0, 35); bPortal.Parent = BMenu
+bPortal.MouseButton1Click:Connect(function()
+local toolName = "PortalTeleportTool"
+if LP.Backpack:FindFirstChild(toolName) then return end
+
+local t = Instance.new("Tool")  
+t.Name = toolName  
+t.RequiresHandle = false  
+t.Activated:Connect(function()  
+    local char = LP.Character  
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")  
+    if not hrp then return end  
+
+    local targetPos = Mouse.Hit.Position  
+
+    -- PORTAL VISUAL  
+    local portal = Instance.new("Part")  
+    portal.Size = Vector3.new(6, 10, 1)  
+    portal.Anchored = true  
+    portal.CanCollide = false  
+    portal.Material = Enum.Material.Neon  
+    portal.Color = Color3.fromRGB(255, 255, 255)  
+    portal.CFrame = hrp.CFrame * CFrame.new(0, 0, -8)  
+    portal.Parent = workspace  
+
+    -- TRIGGER  
+    local trigger = Instance.new("Part")  
+    trigger.Size = Vector3.new(6, 10, 2)  
+    trigger.Transparency = 1  
+    trigger.Anchored = true  
+    trigger.CanCollide = false  
+    trigger.CFrame = portal.CFrame  
+    trigger.Parent = workspace  
+
+    local used = false  
+    trigger.Touched:Connect(function(hit)  
+        if used then return end  
+        if hit.Parent == char then  
+            used = true  
+            hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 4, 0))  
+
+            -- FOOT PAD (Pijakan agar tidak jatuh)  
+            local pad = Instance.new("Part")  
+            pad.Size = Vector3.new(8, 1, 8)  
+            pad.Anchored = true  
+            pad.CanCollide = true  
+            pad.Position = targetPos  
+            pad.Color = Color3.fromRGB(220, 220, 220)  
+            pad.Material = Enum.Material.SmoothPlastic  
+            pad.Parent = workspace  
+            game:GetService("Debris"):AddItem(pad, 25)  
+        end  
+    end)  
+
+    game:GetService("Debris"):AddItem(portal, 25)  
+    game:GetService("Debris"):AddItem(trigger, 25)  
+end)  
+t.Parent = LP.Backpack
+
+end)
+
+-- ================= INPUT BOX UKURAN (BTOOLS) =================
+local WideInput = Instance.new("TextBox")
+WideInput.Size = UDim2.new(0.95, 0, 0, 35); WideInput.PlaceholderText = "Set LEBAR (X)"; WideInput.BackgroundColor3 = Color3.fromRGB(30, 30, 30); WideInput.TextColor3 = Color3.new(1,1,1); WideInput.Parent = BMenu
+WideInput.FocusLost:Connect(function() States.PartWide = tonumber(WideInput.Text) or 4 end)
+
+local TallInput = Instance.new("TextBox")
+TallInput.Size = UDim2.new(0.95, 0, 0, 35); TallInput.PlaceholderText = "Set TINGGI (Y)"; TallInput.BackgroundColor3 = Color3.fromRGB(30, 30, 30); TallInput.TextColor3 = Color3.new(1,1,1); TallInput.Parent = BMenu
+TallInput.FocusLost:Connect(function() States.PartTall = tonumber(TallInput.Text) or 1 end)
+
+local LongInput = Instance.new("TextBox")
+LongInput.Size = UDim2.new(0.95, 0, 0, 35); LongInput.PlaceholderText = "Set PANJANG (Z)"; LongInput.BackgroundColor3 = Color3.fromRGB(30, 30, 30); LongInput.TextColor3 = Color3.new(1,1,1); LongInput.Parent = BMenu
+LongInput.FocusLost:Connect(function() States.PartLong = tonumber(LongInput.Text) or 4 end)
+
+local DegInput = Instance.new("TextBox")
+DegInput.Size = UDim2.new(0.95, 0, 0, 35)
+DegInput.PlaceholderText = "Set DERAJAT (Contoh: 15 / 45)"
+DegInput.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+DegInput.TextColor3 = Color3.new(1,1,1)
+DegInput.Parent = BMenu
+DegInput.FocusLost:Connect(function()
+States.PartDeg = tonumber(DegInput.Text) or 15
+end)
+
+local Divider = Instance.new("Frame")
+Divider.Size = UDim2.new(0.95, 0, 0, 2); Divider.BackgroundColor3 = Color3.fromRGB(255, 85, 0); Divider.Parent = BMenu
+
+-- ================= IMPROVED SPAWNER (BTOOLS CATEGORY) =================
+
+-- 1. Data Warna (8 Pilihan)
+local Colors = {"Bright blue", "Bright red", "Bright green", "Bright yellow", "Bright orange", "Bright violet", "Black", "White"}
+local colorIndex = 1
+
+-- Tombol Pilih Warna (Ganti-ganti 8 warna)
+local ColorBtn = Instance.new("TextButton")
+ColorBtn.Size = UDim2.new(0.95, 0, 0, 35); ColorBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40); ColorBtn.TextColor3 = Color3.new(1,1,1); ColorBtn.Parent = BMenu
+RunService.RenderStepped:Connect(function()
+ColorBtn.Text = "Color: " .. Colors[colorIndex]
+end)
+ColorBtn.MouseButton1Click:Connect(function()
+colorIndex = colorIndex + 1
+if colorIndex > #Colors then colorIndex = 1 end
+States.PartColor = Colors[colorIndex]
+end)
+
+-- 2. Fungsi Dasar Spawn (Logika Utama)
+local function spawnObject(type)
+local char = LP.Character
+local hrp = char and char:FindFirstChild("HumanoidRootPart")
+if not hrp then return end
+
+local p = Instance.new(type == "Segitiga" and "WedgePart" or "Part")  
+p.Name = "PunkX_Created"  
+p.Size = Vector3.new(States.PartWide, States.PartTall, States.PartLong)  
+p.BrickColor = BrickColor.new(States.PartColor)  
+p.Anchored = true  
+p.CanCollide = true  
+  
+-- Logika Posisi  
+if type == "Jalan" then  
+-- Menggunakan States.PartDeg yang diambil dari Input Box tadi  
+p.CFrame = hrp.CFrame * CFrame.new(0, 2, -(States.PartLong/2 + 4)) * CFrame.Angles(math.rad(States.PartDeg or 15), 0, 0)  
+else  
+    -- Muncul 8 stud di depan muka  
+    p.CFrame = hrp.CFrame * CFrame.new(0, 0, -8)  
+end  
+  
+p.Parent = workspace
+
+end
+
+-- 3. Tombol Spawn Block Biasa
+local BtnBlock = Instance.new("TextButton")
+BtnBlock.Text = "Spawn SQUARE Block"; BtnBlock.Size = UDim2.new(0.95, 0, 0, 35); BtnBlock.BackgroundColor3 = Color3.fromRGB(0, 120, 200); BtnBlock.TextColor3 = Color3.new(1,1,1); BtnBlock.Parent = BMenu
+BtnBlock.MouseButton1Click:Connect(function() spawnObject("Square") end)
+
+-- 4. Tombol Spawn Segitiga (Wedge)
+local BtnWedge = Instance.new("TextButton")
+BtnWedge.Text = "Spawn TRIANGLE (Wedge)"; BtnWedge.Size = UDim2.new(0.95, 0, 0, 35); BtnWedge.BackgroundColor3 = Color3.fromRGB(0, 120, 200); BtnWedge.TextColor3 = Color3.new(1,1,1); BtnWedge.Parent = BMenu
+BtnWedge.MouseButton1Click:Connect(function() spawnObject("Segitiga") end)
+
+-- 5. Tombol Spawn Jalan Menaik (Ramp)
+local BtnRamp = Instance.new("TextButton")
+BtnRamp.Text = "Spawn RAMP (Jalan)"; BtnRamp.Size = UDim2.new(0.95, 0, 0, 35); BtnRamp.BackgroundColor3 = Color3.fromRGB(0, 120, 200); BtnRamp.TextColor3 = Color3.new(1,1,1); BtnRamp.Parent = BMenu
+BtnRamp.MouseButton1Click:Connect(function() spawnObject("Jalan") end)
+
+-- 6. Tombol DELETE ALL (Hapus semua yang di-spawn PunkX)
+local DelBtn = Instance.new("TextButton")
+DelBtn.Text = "DELETE ALL SPAWNED"; DelBtn.Size = UDim2.new(0.95, 0, 0, 35); DelBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0); DelBtn.TextColor3 = Color3.new(1,1,1); DelBtn.Parent = BMenu
+DelBtn.MouseButton1Click:Connect(function()
+for _, v in pairs(workspace:GetChildren()) do
+if v.Name == "PunkX_Created" then
+v:Destroy()
+end
+end
+end)
+
+-- ================= TRUSS BUILDER TOOL =================
+
+local SelectedColor = Color3.fromRGB(255,255,255)
+
+-- Pilihan warna (5 tombol style cycle)
+local TrussColors = {
+    Color3.fromRGB(255,255,255), -- putih
+    Color3.fromRGB(0,0,0),       -- hitam
+    Color3.fromRGB(0,0,255),     -- biru
+    Color3.fromRGB(255,0,0),     -- merah
+    Color3.fromRGB(128,0,128)    -- ungu
+}
+
+local colorIndex = 1
+
+-- Tombol pilih warna
+local ColorPickBtn = Instance.new("TextButton")
+ColorPickBtn.Size = UDim2.new(0.95,0,0,35)
+ColorPickBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+ColorPickBtn.TextColor3 = Color3.new(1,1,1)
+ColorPickBtn.Parent = BMenu
+
+RunService.RenderStepped:Connect(function()
+    local names = {"PUTIH","HITAM","BIRU","MERAH","UNGU"}
+    ColorPickBtn.Text = "Truss Color: "..names[colorIndex]
+end)
+
+ColorPickBtn.MouseButton1Click:Connect(function()
+    colorIndex += 1
+    if colorIndex > #TrussColors then colorIndex = 1 end
+    SelectedColor = TrussColors[colorIndex]
+end)
+
+-- INPUT TINGGI
+local TrussHeightBox = Instance.new("TextBox")
+TrussHeightBox.Size = UDim2.new(0.95,0,0,35)
+TrussHeightBox.PlaceholderText = "Tinggi Total"
+TrussHeightBox.BackgroundColor3 = Color3.fromRGB(30,30,30)
+TrussHeightBox.TextColor3 = Color3.new(1,1,1)
+TrussHeightBox.Parent = BMenu
+
+-- INPUT LEBAR
+local TrussWidthBox = Instance.new("TextBox")
+TrussWidthBox.Size = UDim2.new(0.95,0,0,35)
+TrussWidthBox.PlaceholderText = "Lebar"
+TrussWidthBox.BackgroundColor3 = Color3.fromRGB(30,30,30)
+TrussWidthBox.TextColor3 = Color3.new(1,1,1)
+TrussWidthBox.Parent = BMenu
+
+-- INPUT DEPTH
+local TrussDepthBox = Instance.new("TextBox")
+TrussDepthBox.Size = UDim2.new(0.95,0,0,35)
+TrussDepthBox.PlaceholderText = "Panjang Depan"
+TrussDepthBox.BackgroundColor3 = Color3.fromRGB(30,30,30)
+TrussDepthBox.TextColor3 = Color3.new(1,1,1)
+TrussDepthBox.Parent = BMenu
+
+-- INPUT SAMPING
+local TrussSideBox = Instance.new("TextBox")
+TrussSideBox.Size = UDim2.new(0.95,0,0,35)
+TrussSideBox.PlaceholderText = "Tangga Kiri/Kanan"
+TrussSideBox.BackgroundColor3 = Color3.fromRGB(30,30,30)
+TrussSideBox.TextColor3 = Color3.new(1,1,1)
+TrussSideBox.Parent = BMenu
+
+-- TOOL SPAWN
+local TrussBtn = Instance.new("TextButton")
+TrussBtn.Text = "[GET] Truss Builder Tool"
+TrussBtn.Size = UDim2.new(0.95,0,0,35)
+TrussBtn.BackgroundColor3 = Color3.fromRGB(0,150,100)
+TrussBtn.TextColor3 = Color3.new(1,1,1)
+TrussBtn.Parent = BMenu
+
+local towerCount = 0
+
+TrussBtn.MouseButton1Click:Connect(function()
+    giveTool("TrussBuilder", function()
+
+        towerCount += 1
+        local folder = Instance.new("Folder", workspace)
+        folder.Name = "Tower_"..towerCount
+
+        local char = LP.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        local tinggi = tonumber(TrussHeightBox.Text) or 20
+        local lebar = tonumber(TrussWidthBox.Text) or 4
+        local depth = tonumber(TrussDepthBox.Text) or 4
+        local side = tonumber(TrussSideBox.Text) or 0
+
+        local spawnPos = hrp.Position + (hrp.CFrame.LookVector * 6)
+        local trussHeight = 2
+        local jumlah = math.floor(tinggi / trussHeight)
+
+        for i = 1, jumlah do
+            local y = (i-1)*trussHeight
+
+            local function create(pos)
+                local t = Instance.new("TrussPart")
+                t.Size = Vector3.new(lebar, trussHeight, depth)
+                t.Anchored = true
+                t.Color = SelectedColor
+                t.Material = Enum.Material.Metal
+                t.Position = pos
+                t.Parent = folder
+            end
+
+            -- tengah
+            create(spawnPos + Vector3.new(0,y,0))
+
+            -- samping
+            for s = 1, side do
+                create(spawnPos + Vector3.new(s*lebar,y,0))
+                create(spawnPos + Vector3.new(-s*lebar,y,0))
+            end
+        end
+
+    end)
+end)
+
+-- ================= DELETE ALL TRUSS =================
+
+local DelTrussBtn = Instance.new("TextButton")
+DelTrussBtn.Text = "DELETE ALL TRUSS"
+DelTrussBtn.Size = UDim2.new(0.95,0,0,35)
+DelTrussBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+DelTrussBtn.TextColor3 = Color3.new(1,1,1)
+DelTrussBtn.Parent = BMenu
+
+DelTrussBtn.MouseButton1Click:Connect(function()
+    for _, v in pairs(workspace:GetChildren()) do
+        if v:IsA("Folder") and string.find(v.Name, "Tower_") then
+            v:Destroy()
+        end
+    end
+end)
+
+-- ================= ROTATE SYSTEM (DERAJAT FIX) =================
+
+-- pastikan ada default
+States.PartDeg = States.PartDeg or 15
+
+-- INPUT DERAJAT
+local DegInput2 = Instance.new("TextBox")
+DegInput2.Size = UDim2.new(0.95, 0, 0, 35)
+DegInput2.PlaceholderText = "Set Derajat Rotate (15 / 45 / 90)"
+DegInput2.BackgroundColor3 = Color3.fromRGB(30,30,30)
+DegInput2.TextColor3 = Color3.new(1,1,1)
+DegInput2.Parent = BMenu
+
+DegInput2.FocusLost:Connect(function()
+    local val = tonumber(DegInput2.Text)
+    if val then
+        States.PartDeg = val
+    end
+end)
+
+-- FUNCTION ROTATE
+local function addRotateTool(name, axis)
+    local btn = Instance.new("TextButton")
+    btn.Text = "[GET] Rotate "..name
+    btn.Size = UDim2.new(0.95,0,0,35)
+    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Parent = BMenu
+
+    btn.MouseButton1Click:Connect(function()
+        giveTool("Rotate"..name, function()
+            local target = Mouse.Target
+            if not (target and target:IsA("BasePart")) then return end
+
+            local deg = math.rad(States.PartDeg or 15)
+
+            if axis == "X" then
+                target.CFrame *= CFrame.Angles(deg,0,0)
+            elseif axis == "Y" then
+                target.CFrame *= CFrame.Angles(0,deg,0)
+            elseif axis == "Z" then
+                target.CFrame *= CFrame.Angles(0,0,deg)
+            end
+        end)
+    end)
+end
+
+-- CREATE BUTTON
+addRotateTool("X","X")
+addRotateTool("Y","Y")
+addRotateTool("Z","Z")
+
+local ESP_Data = {}
+
+local function createESP(plr)
+    if plr == LP then return end
+
+    ESP_Data[plr] = {
+        Text = Drawing.new("Text"),
+        Box = Drawing.new("Square"),
+        Tracer = Drawing.new("Line"),
+        Health = Drawing.new("Line"),
+        HealthText = Drawing.new("Text"),
+        Highlight = Instance.new("Highlight")
+    }
+
+    local d = ESP_Data[plr]
+
+    -- TEXT
+    d.Text.Size = 15
+    d.Text.Center = true
+    d.Text.Outline = true
+    d.Text.Color = Color3.fromRGB(0,255,255)
+
+    -- BOX
+    d.Box.Thickness = 1
+    d.Box.Color = Color3.fromRGB(0,255,255)
+    d.Box.Filled = false
+
+    -- TRACER
+    d.Tracer.Thickness = 1
+    d.Tracer.Color = Color3.fromRGB(0,255,255)
+
+    -- HEALTH BAR
+    d.Health.Thickness = 2
+    d.Health.Color = Color3.fromRGB(0,255,0)
+
+    -- HIGHLIGHT
+    d.Highlight.FillTransparency = 0.5
+    d.Highlight.OutlineColor = Color3.fromRGB(0,255,255)
+end
+
+for _,p in pairs(Players:GetPlayers()) do
+    createESP(p)
+end
+
+Players.PlayerAdded:Connect(createESP)
+
+Players.PlayerRemoving:Connect(function(plr)
+    if ESP_Data[plr] then
+        for _,v in pairs(ESP_Data[plr]) do
+            pcall(function() v:Remove() end)
+            pcall(function() v:Destroy() end)
+        end
+        ESP_Data[plr] = nil
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    for plr,esp in pairs(ESP_Data) do
+        local char = plr.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+        if States.ESP and hrp and hum and hum.Health > 0 then
+            local pos, visible = Camera:WorldToViewportPoint(hrp.Position)
+
+            if visible then
+                local dist = (LP.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+
+-- HEALTH TEXT (ANGKA)
+if States.ESP_HealthText then
+    esp.HealthText.Text = math.floor(hum.Health) .. " / " .. math.floor(hum.MaxHealth)
+    esp.HealthText.Position = Vector2.new(pos.X, pos.Y + 20)
+    esp.HealthText.Visible = true
+else
+    esp.HealthText.Visible = false
+end
+
+                -- TEXT
+                if States.ESP_Name or States.ESP_Distance then
+                    local txt = ""
+                    if States.ESP_Name then txt = txt .. plr.Name end
+                    if States.ESP_Distance then txt = txt .. "\n["..math.floor(dist).."]" end
+
+                    esp.Text.Text = txt
+                    esp.Text.Position = Vector2.new(pos.X, pos.Y - 30)
+                    esp.Text.Visible = true
+                else
+                    esp.Text.Visible = false
+                end
+
+                -- BOX
+                if States.ESP_Box then
+                    local size = (Camera:WorldToViewportPoint(hrp.Position + Vector3.new(2,3,0)).Y - pos.Y)
+                    esp.Box.Size = Vector2.new(size*1.5, size*2)
+                    esp.Box.Position = Vector2.new(pos.X - esp.Box.Size.X/2, pos.Y - esp.Box.Size.Y/2)
+                    esp.Box.Visible = true
+                else
+                    esp.Box.Visible = false
+                end
+
+                -- TRACER
+                if States.ESP_Tracer then
+                    esp.Tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
+                    esp.Tracer.To = Vector2.new(pos.X, pos.Y)
+                    esp.Tracer.Visible = true
+                else
+                    esp.Tracer.Visible = false
+                end
+
+                -- HEALTH BAR
+                if States.ESP_Health then
+                    local healthPercent = hum.Health / hum.MaxHealth
+                    local height = 50
+                    esp.Health.From = Vector2.new(pos.X - 25, pos.Y + height/2)
+                    esp.Health.To = Vector2.new(pos.X - 25, pos.Y + height/2 - (height * healthPercent))
+                    esp.Health.Visible = true
+                else
+                    esp.Health.Visible = false
+                end
+
+                -- HIGHLIGHT
+                if States.ESP_Highlight then
+                    esp.Highlight.Parent = char
+                else
+                    esp.Highlight.Parent = nil
+                end
+
+            else
+                for _,v in pairs(esp) do
+                    pcall(function() v.Visible = false end)
+                end
+            end
+        else
+            for _,v in pairs(esp) do
+                pcall(function() v.Visible = false end)
+            end
+        end
+    end
+end)
+
+print("Punkx loaded ") 
+
+-- ================= UNIVERSAL LOADER FUNCTION =================
+
+local function createLoader(name, url)
+    local btn = Instance.new("TextButton", PMenu)
+    btn.Size = UDim2.new(0.95,0,0,35)
+    btn.Text = name
+    btn.BackgroundColor3 = Color3.fromRGB(0,120,200)
+    btn.TextColor3 = Color3.new(1,1,1)
+
+    btn.MouseButton1Click:Connect(function()
+        local success, err = pcall(function()
+            loadstring(game:HttpGet(url))()
+        end)
+
+        if success then
+            btn.Text = "Loaded!"
+        else
+            warn("Error:", err)
+            btn.Text = "Error!"
+        end
+
+        task.wait(1.5)
+        btn.Text = name
+    end)
+end
+
+createLoader("God Mode", "https://raw.githubusercontent.com/Rawbr10/Roblox-Scripts/refs/heads/main/God%20Mode%20Script%20Universal")
+
+createLoader("Spwaner Script", "https://raw.githubusercontent.com/songokumuiinstict-prog/aripggilan/refs/heads/main/Aripggcoy")
+
+createLoader("BoBoiBoy", "https://raw.githubusercontent.com/songokumuiinstict-prog/aripggilan/refs/heads/main/Gggsih")
+
+createLoader("Invisible", "https://pastebin.com/raw/3Rnd9rHf")
+
+createLoader("Dodge", "https://raw.githubusercontent.com/songokumuiinstict-prog/aripggilan/refs/heads/main/Tufyfuhv")
